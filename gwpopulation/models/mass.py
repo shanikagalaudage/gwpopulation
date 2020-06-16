@@ -1,7 +1,7 @@
 from warnings import warn
 
 from ..cupy_utils import trapz, xp
-from ..utils import powerlaw, truncnorm
+from ..utils import powerlaw, truncnorm, farrow
 
 
 def double_power_law_primary_mass(mass, alpha_1, alpha_2, mmin, mmax, break_fraction):
@@ -349,6 +349,75 @@ def two_component_primary_secondary_identical(
         sigpp=sigpp,
     )
 
+def one_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs):
+    """                                                                                       
+    Model for primary dns mass distribution based on Farrow et. al. model.                                                                                   
+                                                                                                                                                                                                              
+    Parameters                                                                                                                                                                         
+    ----------                                                             
+    mass: array-like                                                                                                                                                                                          
+       Array of mass values.                                                                                                                                                                                      
+    mmin: float                                                                                                                                                                                                   
+       Minimum neutron star mass.                                                                                                                                                                                 
+    mmax: float                                                                                                                                                                                                   
+       Maximum neutron star mass.                                                                                                                                                                                 
+    kappa: float                                                                                                                                                                                                  
+       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.                                                                                                              
+    mur1: float                                                                                                                                                                               
+       Mean of first Gaussian in original Farrow recylced distribution.                                                                                                                                           
+    sigr1: float                                                                                                                                                                                                  
+       Standard deviation of first Gaussian in original Farrow recycled distribution.                                                                                                                             
+    mur2: float                                                                                                                                                                                            
+       Mean of second Gaussian in original Farrow recycled distribution.                                                                                                                                          
+    sigr2: float                                                                                                                                                                                                  
+       Standard deviation of second Gaussian in original Farrow recycled distribution.                                                                                                                            
+    mus: float                                                                                                                                                                          
+       Mean of Gaussian in original Farrow slow distribution.                                                                                                                                                     
+    sigs: float                                                                                                                                                                                                   
+       Standard deviation of Gaussian in original Farrow slow distribution. 
+    """
+
+    prob = farrow(mass, kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
+    return prob
+
+def two_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, rho, muh, sigh):
+    """
+    Model for primary dns mass distribution using added high mass peak.
+
+    Parameters
+    ----------
+    mass: array-like
+       Array of mass values.
+    mmin: float
+       Minimum neutron star mass.
+    mmax: float
+       Maximum neutron star mass.
+    kappa: float
+       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
+    mur1: float
+       Mean of first Gaussian in original Farrow recylced distribution.
+    sigr1: float
+       Standard deviation of first Gaussian in original Farrow recycled distribution.
+    mur2: float
+       Mean of second Gaussian in original Farrow recycled distribution.
+    sigr2: float
+       Standard deviation of second Gaussian in original Farrow recycled distribution.
+    mus: float
+       Mean of Gaussian in original Farrow slow distribution.
+    sigs: float
+       Standard deviation of Gaussian in original Farrow slow distribution.
+    rho: float
+       Fraction of neutron stars in high mass Gaussian.   
+    muh: float
+       Mean of high mass Gaussian component.
+    sigh: float
+       Standard deviation of high mass Gaussian component.
+    """
+
+    p_far = farrow(mass, kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
+    p_norm = truncnorm(mass, mu=muh, sigma=sigh, high=mmax, low=mmin) 
+    prob = (1 - rho) * p_far + rho * p_norm
+    return prob
 
 class _SmoothedMassDistribution(object):
     def __init__(self):

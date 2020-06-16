@@ -45,6 +45,19 @@ def truncnorm(xx, mu, sigma, high, low):
     prob *= (xx <= high) & (xx >= low)
     return prob
 
+def farrow(xx, kappa, mu1, sigma1, mu2, sigma2, mu3, sigma3, high, low):
+    if sigma1 <= 0:
+        raise ValueError(f"Sigma1 must be grater than 0, sigma1={sigma1}")
+    if sigma2 <= 0:
+        raise ValueError(f"Sigma2 must be grater than 0, sigma2={sigma2}")
+    if sigma3 <= 0:
+        raise ValueError(f"Sigma3 must be grater than 0, sigma3={sigma3}")
+    prob = (xp.exp(-xp.power(xx - mu3, 2)/2 * sigma3 **2) / (2 * xp.power(2 * xp.pi, 0.5) * sigma3)) * (kappa * (erf((xx - mu1) / (2 ** 0.5 * sigma1)) + erf(mu1 / (2 ** 0.5 * sigma1))) + (kappa - 1) * (erf((xx - mu2) / (2 ** 0.5 * sigma2)) + erf(mu2 / (2 ** 0.5 * sigma2)))) + 0.25 * xp.power(2 / xp.pi, 0.5) * (kappa * xp.exp(-xp.power(xx - mu1, 2) / 2 * sigma1 ** 2) / sigma1 + (1 - kappa) * xp.exp(-xp.power(xx - mu2, 2) / (2 * sigma2 ** 2)) / sigma2) * (erf((xx - mu3) / (2 ** 0.5 * sigma3)) + erf(mu3 / (2 ** 0.5 * sigma3)))
+    norm = sum(xx * prob)
+    prob /= norm
+    prob *= (xx <= high) & (xx >= low)
+    return prob
+
 
 def get_version_information():
     version_file = os.path.join(os.path.dirname(__file__), ".version")
