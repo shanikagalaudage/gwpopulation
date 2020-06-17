@@ -349,14 +349,14 @@ def two_component_primary_secondary_identical(
         sigpp=sigpp,
     )
 
-def one_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs):
+def one_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, beta):
     """                                                                                       
     Model for primary dns mass distribution based on Farrow et. al. model.                                                                                   
                                                                                                                                                                                                               
     Parameters                                                                                                                                                                         
     ----------                                                             
-    mass: array-like                                                                                                                                                                                          
-       Array of mass values.                                                                                                                                                                                      
+    dataset: dict                                                                                                                                                                                          
+       Dictionary of numpy arrays for 'mass_1' and 'mass_ratio'.                                                                                                                         
     mmin: float                                                                                                                                                                                                   
        Minimum neutron star mass.                                                                                                                                                                                 
     mmax: float                                                                                                                                                                                                   
@@ -375,19 +375,23 @@ def one_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2,
        Mean of Gaussian in original Farrow slow distribution.                                                                                                                                                     
     sigs: float                                                                                                                                                                                                   
        Standard deviation of Gaussian in original Farrow slow distribution. 
+    beta: float
+       Powerlaw exponent of the mass ratio distribution.
     """
 
-    prob = farrow(mass, kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
+    p_m1 = farrow(dataset["mass_1"], kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
+    p_q = powerlaw(dataset["mass_ratio"], beta, 1, mmin / dataset["mass_1"])
+    prob = p_m1 * p_q
     return prob
 
-def two_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, rho, muh, sigh):
+def two_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, rho, muh, sigh, beta):
     """
     Model for primary dns mass distribution using added high mass peak.
 
     Parameters
     ----------
-    mass: array-like
-       Array of mass values.
+    dataset: dict                                                                           
+       Dictionary of numpy arrays for 'mass_1' and 'mass_ratio'.
     mmin: float
        Minimum neutron star mass.
     mmax: float
@@ -412,11 +416,15 @@ def two_component_dns_primary(mass, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2,
        Mean of high mass Gaussian component.
     sigh: float
        Standard deviation of high mass Gaussian component.
+    beta: float
+       Powerlaw exponent of the mass ratio distribution.
     """
 
-    p_far = farrow(mass, kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
-    p_norm = truncnorm(mass, mu=muh, sigma=sigh, high=mmax, low=mmin) 
-    prob = (1 - rho) * p_far + rho * p_norm
+    p_far = farrow(dataset["mass_1"], kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
+    p_norm = truncnorm(dataset["mass_1"], mu=muh, sigma=sigh, high=mmax, low=mmin)
+    p_m1 = (1 - rho) * p_far + rho * p_norm
+    p_q = powerlaw(dataset["mass_ratio"], beta, 1, mmin / dataset["mass_1"])
+    prob = p_m1 * p_q
     return prob
 
 class _SmoothedMassDistribution(object):
