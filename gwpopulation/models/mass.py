@@ -1,7 +1,7 @@
 from warnings import warn
 
 from ..cupy_utils import trapz, xp
-from ..utils import powerlaw, truncnorm, farrow
+from ..utils import powerlaw, truncnorm, farrow_primary, farrow_secondary, farrow_slow_peak_primary, farrow_slow_peak_secondary
 
 
 def double_power_law_primary_mass(mass, alpha_1, alpha_2, mmin, mmax, break_fraction):
@@ -349,9 +349,9 @@ def two_component_primary_secondary_identical(
         sigpp=sigpp,
     )
 
-def one_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, beta):
+def farrow_dns(dataset, mmin, mmax, kappar, mur1, sigr1, mur2, sigr2, mus1, sigs1):
     """                                                                                       
-    Model for primary dns mass distribution based on Farrow et. al. model.                                                                                   
+    Model for dns mass distribution based on Farrow et. al. model.                                                                                   
                                                                                                                                                                                                               
     Parameters                                                                                                                                                                         
     ----------                                                             
@@ -361,7 +361,7 @@ def one_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sig
        Minimum neutron star mass.                                                                                                                                                                                 
     mmax: float                                                                                                                                                                                                   
        Maximum neutron star mass.                                                                                                                                                                                 
-    kappa: float                                                                                                                                                                                                  
+    kappar: float                                                                                                                                                           
        Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.                                                                                                              
     mur1: float                                                                                                                                                                               
        Mean of first Gaussian in original Farrow recylced distribution.                                                                                                                                           
@@ -371,22 +371,20 @@ def one_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sig
        Mean of second Gaussian in original Farrow recycled distribution.                                                                                                                                          
     sigr2: float                                                                                                                                                                                                  
        Standard deviation of second Gaussian in original Farrow recycled distribution.                                                                                                                            
-    mus: float                                                                                                                                                                          
+    mus1: float                                                                                                                                                                          
        Mean of Gaussian in original Farrow slow distribution.                                                                                                                                                     
-    sigs: float                                                                                                                                                                                                   
+    sigs1: float                                                                                                                                                                       
        Standard deviation of Gaussian in original Farrow slow distribution. 
-    beta: float
-       Powerlaw exponent of the mass ratio distribution.
     """
 
-    p_m1 = farrow(dataset["mass_1"], kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
-    p_q = powerlaw(dataset["mass_ratio"], beta, 1, mmin / dataset["mass_1"])
-    prob = p_m1 * p_q
+    p_m1 = farrow_primary(dataset["mass_1"], kappa=kappar, mur1=mur1, sigmar1=sigr1, mur2=mur2, sigmar2=sigr2, mus=mus1, sigmas=sigs1, high=mmax, low=mmin)
+    p_m2 = farrow_secondary(dataset["mass_2"], kappa=kappar, mur1=mur1, sigmar1=sigr1, mur2=mur2, sigmar2=sigr2, mus=mus1, sigmas=sigs1, high=mmax, low=mmin)
+    prob = primary_secondary_general(dataset, p_m1, p_m2)
     return prob
 
-def two_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sigr2, mus, sigs, rho, muh, sigh, beta):
+def farrow_slow_peak_dns(dataset, mmin, mmax, kappar, mur1, sigr1, mur2, sigr2, kappas, mus1, sigs1, mus2, sigs2):
     """
-    Model for primary dns mass distribution using added high mass peak.
+    Model for primary dns mass distribution using added peak in slow mass distribution.
 
     Parameters
     ----------
@@ -396,7 +394,7 @@ def two_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sig
        Minimum neutron star mass.
     mmax: float
        Maximum neutron star mass.
-    kappa: float
+    kappar: float
        Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
     mur1: float
        Mean of first Gaussian in original Farrow recylced distribution.
@@ -406,25 +404,21 @@ def two_component_dns_primary(dataset, mmin, mmax, kappa, mur1, sigr1, mur2, sig
        Mean of second Gaussian in original Farrow recycled distribution.
     sigr2: float
        Standard deviation of second Gaussian in original Farrow recycled distribution.
-    mus: float
-       Mean of Gaussian in original Farrow slow distribution.
-    sigs: float
-       Standard deviation of Gaussian in original Farrow slow distribution.
-    rho: float
-       Fraction of neutron stars in high mass Gaussian.   
-    muh: float
-       Mean of high mass Gaussian component.
-    sigh: float
-       Standard deviation of high mass Gaussian component.
-    beta: float
-       Powerlaw exponent of the mass ratio distribution.
+    kappas: float
+       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
+    mus1: float
+       Mean of first Gaussian in original Farrow slow distribution.
+    sigs1: float
+       Standard deviation of first Gaussian in original Farrow slow distribution.
+    mus2: float
+       Mean of added Gaussian in Farrow slow distribution.
+    sigs2: float
+       Standard deviation of added Gaussian in Farrow slow distribution.
     """
 
-    p_far = farrow(dataset["mass_1"], kappa=kappa, mu1=mur1, sigma1=sigr1, mu2=mur2, sigma2=sigr2, mu3=mus, sigma3=sigs, high=mmax, low=mmin)
-    p_norm = truncnorm(dataset["mass_1"], mu=muh, sigma=sigh, high=mmax, low=mmin)
-    p_m1 = (1 - rho) * p_far + rho * p_norm
-    p_q = powerlaw(dataset["mass_ratio"], beta, 1, mmin / dataset["mass_1"])
-    prob = p_m1 * p_q
+    p_m1 = farrow_slow_peak_primary(dataset['mass_1'], kappar=kappar, mur1=mur1, sigmar1=sigr1, mur2=mur2, sigmar2=sigr2, kappas=kappas, mus1=mus1, sigmas1=sigs1, mus2=mus2, sigmas2=sigs2, high=mmax, low=mmin)
+    p_m2 = farrow_slow_peak_secondary(dataset['mass_2'], kappar=kappar, mur1=mur1, sigmar1=sigr1, mur2=mur2, sigmar2=sigr2, kappas=kappas, mus1=mus1, sigmas1=sigs1, mus2=mus2, sigmas2=sigs2, high=mmax, low=mmin)
+    prob = primary_secondary_general(dataset, p_m1, p_m2)
     return prob
 
 class _SmoothedMassDistribution(object):
