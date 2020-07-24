@@ -349,75 +349,76 @@ def two_component_primary_secondary_identical(
         sigpp=sigpp,
     )
 
-def farrow_dns(dataset, mmin, mmax, kappar, mur1, sigr1, mur2, sigr2, mus1, sigs1):
+def farrow_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, mus1, sigs1):
     """  
-    Model for recycled and slow NS mass distribution using added peak in slow mass distribution.
+    Model for recycled and slow neutron star mass distribution motivated by Farrow+ (2019) including a Gaussian distribution of recycled mass and a two Gaussian distribution of slow mass.
 
     Parameters
     ----------
     dataset: dict
-       Dictionary of numpy arrays for 'mass_r' and 'mass_s'.
+       Dictionary of numpy arrays for recycled mass and slow mass.
     mmin: float
        Minimum neutron star mass.
     mmax: float
        Maximum neutron star mass.
-    kappar: float
-       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
+    xir: float
+       Fraction of neutron stars present in first Gaussian of recycled mass distribution.
     mur1: float
-       Mean of first Gaussian in original Farrow recylced distribution.
+       Mean of first Gaussian in recycled mass distribution.
     sigr1: float
-       Standard deviation of first Gaussian in original Farrow recycled distribution.
-    mur2: float                                                                                                                                   
-       Mean of second Gaussian in original Farrow recycled distribution.
+       Standard deviation of first Gaussian in recycled mass distribution.
+    mur2: float
+       Mean of second gaussian in recycled mass distribution.
     sigr2: float
-       Standard deviation of second Gaussian in original Farrow recycled distribution.
+       Standard deviation of second Gaussian in recycled mass distribution.
     mus1: float
-       Mean of first Gaussian in original Farrow slow distribution.
+       Mean of Gaussian in slow mass distribution.
     sigs1: float
-       Standard deviation of Gaussian in original Farrow slow distribution.
+       Standard deviation of Gaussian in slow distribution.
     """
-    p_mr = kappar * truncnorm(dataset["mass_r"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - kappar) * truncnorm(dataset["mass_r"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
-    p_ms = truncnorm(dataset["mass_s"], mu=mus1, sigma=sigs1, low=mmin, high=mmax)
 
+    p_mr = xir * truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - xir) * truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
+    p_ms = truncnorm(dataset["mass_s_source"], mu=mus1, sigma=sigs1, low=mmin, high=mmax)
+    
     prob = p_mr * p_ms
     return prob
 
-def farrow_slow_peak_dns(dataset, mmin, mmax, kappar, mur1, sigr1, mur2, sigr2, kappas, mus1, sigs1, mus2, sigs2):
+def farrow_slow_peak_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, xis, mus1, sigs1, mus2, sigs2):
     """
-    Model for recycled and slow NS mass distribution using added slow mass peak.
+    Model for recycled and slow neutron star mass distribution motivated by Farro+ (2019) with an additional slow mass peak creating a two Gaussian distribution of recycled and slow mass.
 
     Parameters
     ----------
     dataset: dict                                                                           
-       Dictionary of numpy arrays for 'mass_1' and 'mass_ratio'.
+       Dictionary of numpy arrays for recycled mass and slow mass.
     mmin: float
        Minimum neutron star mass.
     mmax: float
        Maximum neutron star mass.
-    kappar: float
-       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
+    xir: float
+       Fraction of neutron stars present in first Gaussian of recycled mass distribution.
     mur1: float
-       Mean of first Gaussian in original Farrow recylced distribution.
+       Mean of first Gaussian in recycled mass distribution.
     sigr1: float
-       Standard deviation of first Gaussian in original Farrow recycled distribution.
+       Standard deviation of first Gaussian in recycled mass distribution.
     mur2: float
-       Mean of second Gaussian in original Farrow recycled distribution.
+       Mean of second gaussian in recycled mass distribution.
     sigr2: float
-       Standard deviation of second Gaussian in original Farrow recycled distribution.
-    kappas: float
-       Fraction of neutron stars present in first Gaussian in original Farrow recycled distribution.
+       Standard deviation of second Gaussian in recycled mass distribution.
+    xis: float
+       Fraction of neutron stars present in first Gaussian of slow mass distribution.
     mus1: float
-       Mean of first Gaussian in original Farrow slow distribution.
+       Mean of first Gaussian in slow mass distribution.
     sigs1: float
-       Standard deviation of first Gaussian in original Farrow slow distribution.
+       Standard deviation of first Gaussian in slow mass distribution.
     mus2: float
-       Mean of added Gaussian in Farrow slow distribution.
+       Mean of second Gaussian in slow mass distribution.
     sigs2: float
-       Standard deviation of added Gaussian in Farrow slow distribution.
+       Standard deviation of second Gaussian in slow mass distribution.
     """
 
-    p_mr = kappar * truncnorm(dataset["mass_r"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - kappar) * truncnorm(dataset["mass_r"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
-    p_ms = kappas * truncnorm(dataset["mass_s"], mu=mus1, sigma=sigs1, low=mmin, high=mmax) + (1 - kappas) * truncnorm(dataset["mass_s"], mu=mus2, sigma=sigs2, low=mmin, high=mmax)
+    p_mr = xir * truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - xir) * truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
+    p_ms = xis * truncnorm(dataset["mass_s_source"], mu=mus1, sigma=sigs1, low=mmin, high=mmax) + (1 - xis) * truncnorm(dataset["mass_s_source"], mu=mus2, sigma=sigs2, low=mmin, high=mmax)
 
     prob = p_mr * p_ms
     return prob
