@@ -2,7 +2,7 @@ from warnings import warn
 
 from ..cupy_utils import trapz, xp
 from ..utils import powerlaw, truncnorm
-
+from bilby.core.utils import logger
 
 def double_power_law_primary_mass(mass, alpha_1, alpha_2, mmin, mmax, break_fraction):
     """
@@ -351,7 +351,9 @@ def two_component_primary_secondary_identical(
 
 def farrow_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, mus1, sigs1):
     """  
-    Model for recycled and slow neutron star mass distribution motivated by Farrow+ (2019) including a Gaussian distribution of recycled mass and a two Gaussian distribution of slow mass.
+    Model for recycled and slow neutron star mass distribution motivated by
+    Farrow+ (2019) including a Gaussian distribution of recycled mass and 
+    a two Gaussian distribution of slow mass.
 
     Parameters
     ----------
@@ -377,15 +379,21 @@ def farrow_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, mus1, sigs1):
        Standard deviation of Gaussian in slow distribution.
     """
 
-    p_mr = xir * truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - xir) * truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
+    p_mr1 = truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax)
+    p_mr2 = truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
+    p_mr = xir * p_mr1 + (1 - xir) * p_mr2
+
     p_ms = truncnorm(dataset["mass_s_source"], mu=mus1, sigma=sigs1, low=mmin, high=mmax)
     
     prob = p_mr * p_ms
     return prob
 
-def farrow_slow_peak_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, xis, mus1, sigs1, mus2, sigs2):
+def farrow_slow_peak_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2,
+                         xis, mus1, sigs1, mus2, sigs2):
     """
-    Model for recycled and slow neutron star mass distribution motivated by Farro+ (2019) with an additional slow mass peak creating a two Gaussian distribution of recycled and slow mass.
+    Model for recycled and slow neutron star mass distribution motivated by
+    Farrow+ (2019) with an additional slow mass peak creating a two Gaussian 
+    distribution of recycled and slow mass.
 
     Parameters
     ----------
@@ -417,11 +425,21 @@ def farrow_slow_peak_dns(dataset, mmin, mmax, xir, mur1, sigr1, mur2, sigr2, xis
        Standard deviation of second Gaussian in slow mass distribution.
     """
 
-    p_mr = xir * truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax) + (1 - xir) * truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
-    p_ms = xis * truncnorm(dataset["mass_s_source"], mu=mus1, sigma=sigs1, low=mmin, high=mmax) + (1 - xis) * truncnorm(dataset["mass_s_source"], mu=mus2, sigma=sigs2, low=mmin, high=mmax)
+    p_mr1 = truncnorm(dataset["mass_r_source"], mu=mur1, sigma=sigr1, low=mmin, high=mmax)
+    p_mr2 = truncnorm(dataset["mass_r_source"], mu=mur2, sigma=sigr2, low=mmin, high=mmax)
+    p_mr = xir * p_mr1 + (1 - xir) * p_mr2
+
+    p_ms1 = truncnorm(dataset["mass_s_source"], mu=mus1, sigma=sigs1, low=mmin, high=mmax)
+    p_ms2 = truncnorm(dataset["mass_s_source"], mu=mus2, sigma=sigs2, low=mmin, high=mmax)
+
+
+    frac = 1 / ((dataset["weight"] - 1) * xis + 1)
+    p_ms = xis * dataset["weight"] * frac * p_ms1 + (1 - xis) * frac * p_ms2
 
     prob = p_mr * p_ms
+
     return prob
+
 
 class _SmoothedMassDistribution(object):
     def __init__(self):

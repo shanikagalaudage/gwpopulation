@@ -266,6 +266,128 @@ class HyperparameterLikelihood(Likelihood):
             return new_samples
 
 
+class JointLikelihood(HyperparameterLikelihood):
+    """
+
+    """
+    def __init__(
+        self,
+        posteriors,
+        hyper_prior,
+        sampling_prior=None,
+        ln_evidences=None,
+        max_samples=1e100,
+        selection_function=lambda args: 1,
+        conversion_function=lambda args: (args, None),
+        cupy=True,
+    ):
+        if cupy and not CUPY_LOADED:
+            logger.warning("Cannot import cupy, falling back to numpy.")
+
+        posteriors1, posteriors2 = posteriors
+        self.samples_per_posterior = max_samples
+
+        posts = [posteriors1, posteriors2]
+        for post in posts: 
+            for p in post:
+                max_samples = min(len(p), max_samples)
+        logger.debug(f"Downsampling to {max_samples} samples per posterior.")
+        self.samples_per_posterior = max_samples
+
+        self.data1 = self.resample_posteriors(posteriors1, max_samples=max_samples)
+        self.data2 = self.resample_posteriors(posteriors2, max_samples=max_samples)
+
+        if not isinstance(hyper_prior, Model):
+            hyper_prior = Model([hyper_prior])
+        self.hyper_prior = hyper_prior
+        Likelihood.__init__(self, hyper_prior.parameters)
+
+        self.sampling_prior1 = self.data1.pop("prior")
+        self.sampling_prior2 = self.data2.pop("prior")
+        
+        if ln_evidences is not None:
+            self.total_noise_evidence = np.sum(ln_evidences)
+        else:
+            self.total_noise_evidence = np.nan
+
+        self.conversion_function = conversion_function
+        self.selection_function = selection_function
+
+        self.n_posteriors1 = len(posteriors1)
+        self.n_posteriors2 = len(posteriors2)
+
+    def log_likelihood_ratio(self):
+        self.parameters, added_keys = self.conversion_function(self.parameters)
+        self.hyper_prior.parameters.update(self.parameters)
+        
+        prob1 = self.hyper_prior.prob(self.data1)
+        prob2 = self.hyper_prior.prob(self.data2)
+        prob3 = self.hyper_prior.prob(self.data2)
+
+        logger.info("data = {}, {}".format(len(self.data1["weight"]),len(self.data2["weight"])))
+        logger.info("prob = {}, {}, {}".format(len(prob1),len(prob2),len(prob3)))
+        ln_l1 = self.GW_likelihood(prob1)
+        ln_l2 = self.EM_likelihood(prob2)
+        ln_l = ln_l1 + ln_l2
+
+        if added_keys is not None:
+            for key in added_keys:
+                self.parameters.pop(key)
+        if xp.isnan(ln_l):
+            return float(-INF)
+        else:
+            return float(xp.nan_to_num(ln_l))
+    
+    def GW_likelihood(self, prob):
+        '''
+        logger.info(
+            "GW: length samples, data, prior = {}, {}, {}".format(
+                self.samples_per_posterior,
+                len(self.data1["weight"]),
+                len(self.sampling_prior1)
+            )
+        )
+        '''
+        ln_l = xp.sum(-np.log(self.samples_per_posterior) + xp.log(
+           xp.sum(prob / self.sampling_prior1, axis=-1)))
+        
+        ln_l += self._get_selection_factor_gw()
+        return ln_l
+
+    def EM_likelihood(self, prob):
+        '''
+        logger.info(
+            "RD: length samples, data, prior = {}, {}, {}".format(
+                self.samples_per_posterior, 
+                len(self.data2["mass_r_source"]),
+                len(self.sampling_prior2)
+            )
+        )
+        '''
+        ln_l = xp.log(xp.sum(prob / self.sampling_prior2, axis=-1))
+        ln_l = xp.log(xp.sum(self.hyper_prior.prob(self.data2) / self.sampling_prior2, axis=-1))
+        
+        ln_l += -np.log(self.samples_per_posterior)
+        ln_l = xp.sum(ln_l)
+        return ln_l
+        
+
+    def _get_selection_factor_gw(self):
+        return -self.n_posteriors1 * xp.log(self.selection_function(self.parameters))
+
+    def _get_selection_factor_em(self):
+        return 0
+
+    def resample_posteriors(self, posteriors, max_samples=1e300):
+        data = {key: [] for key in posteriors[0]}
+        for posterior in posteriors:
+            temp = posterior.sample(self.samples_per_posterior)
+            for key in data:
+                data[key].append(temp[key])
+        for key in data:
+            data[key] = xp.array(data[key])
+        return data
+
 class RateLikelihood(HyperparameterLikelihood):
     """
     A likelihood for inferring hyperparameter posterior distributions
