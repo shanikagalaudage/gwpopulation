@@ -17,8 +17,17 @@ class GridVT(object):
         self.values = {key: xp.unique(self.data[key]) for key in self.data}
         shape = np.array(list(self.data.values())[0].shape)
         lens = {key: len(self.values[key]) for key in self.data}
-        self.axes = {int(np.where(shape == lens[key])[0]): key for key in self.data}
+        #self.axes = {int(np.where(shape == lens[key])[0]): key for key in self.data}
+        self.axes = dict()
+        i = 0
+        for key in self.data:
+            if len(np.where(shape == lens[key])[0]) > 1:
+                self.axes[i] = key
+                i += 1
+            else:
+                self.axes[int(np.where(shape == lens[key])[0])] = key
         self.ndim = len(self.axes)
+        self.data["weight"] = xp.asarray(np.ones(self.vts.shape)*1.71)
 
     def __call__(self, parameters):
         self.model.parameters.update(parameters)

@@ -319,15 +319,9 @@ class JointLikelihood(HyperparameterLikelihood):
     def log_likelihood_ratio(self):
         self.parameters, added_keys = self.conversion_function(self.parameters)
         self.hyper_prior.parameters.update(self.parameters)
-        
-        prob1 = self.hyper_prior.prob(self.data1)
-        prob2 = self.hyper_prior.prob(self.data2)
-        prob3 = self.hyper_prior.prob(self.data2)
 
-        logger.info("data = {}, {}".format(len(self.data1["weight"]),len(self.data2["weight"])))
-        logger.info("prob = {}, {}, {}".format(len(prob1),len(prob2),len(prob3)))
-        ln_l1 = self.GW_likelihood(prob1)
-        ln_l2 = self.EM_likelihood(prob2)
+        ln_l1 = self.GW_likelihood()
+        ln_l2 = self.EM_likelihood()
         ln_l = ln_l1 + ln_l2
 
         if added_keys is not None:
@@ -338,35 +332,15 @@ class JointLikelihood(HyperparameterLikelihood):
         else:
             return float(xp.nan_to_num(ln_l))
     
-    def GW_likelihood(self, prob):
-        '''
-        logger.info(
-            "GW: length samples, data, prior = {}, {}, {}".format(
-                self.samples_per_posterior,
-                len(self.data1["weight"]),
-                len(self.sampling_prior1)
-            )
-        )
-        '''
+    def GW_likelihood(self):
         ln_l = xp.sum(-np.log(self.samples_per_posterior) + xp.log(
-           xp.sum(prob / self.sampling_prior1, axis=-1)))
+            xp.sum(self.hyper_prior.prob(self.data1) / self.sampling_prior1, axis=-1)))
         
         ln_l += self._get_selection_factor_gw()
         return ln_l
 
-    def EM_likelihood(self, prob):
-        '''
-        logger.info(
-            "RD: length samples, data, prior = {}, {}, {}".format(
-                self.samples_per_posterior, 
-                len(self.data2["mass_r_source"]),
-                len(self.sampling_prior2)
-            )
-        )
-        '''
-        ln_l = xp.log(xp.sum(prob / self.sampling_prior2, axis=-1))
-        ln_l = xp.log(xp.sum(self.hyper_prior.prob(self.data2) / self.sampling_prior2, axis=-1))
-        
+    def EM_likelihood(self):
+        ln_l = xp.log(xp.sum(self.hyper_prior.prob(self.data2) / self.sampling_prior2, axis=-1))        
         ln_l += -np.log(self.samples_per_posterior)
         ln_l = xp.sum(ln_l)
         return ln_l
